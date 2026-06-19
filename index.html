@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🧠 Le Chirurgien</title>
+    <style>
+        :root {
+            --bg-dark: #111418;
+            --surface: #1a1d24;
+            --primary: #0ea5e9;
+            --success: #10b981;
+            --danger: #f43f5e;
+            --text-main: #f3f4f6;
+            --shadow-skeuo: 6px 6px 12px #0a0c0f, -6px -6px 12px #1c2029;
+            --inset-skeuo: inset 4px 4px 8px #0a0c0f, inset -4px -4px 8px #1c2029;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); padding: 16px; display: flex; justify-content: center; min-height: 100vh; }
+        #app { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 24px; }
+        .card { background: var(--surface); border-radius: 16px; padding: 20px; box-shadow: var(--shadow-skeuo); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .card-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--primary); }
+        textarea { width: 100%; background: #0d0f12; color: #10b981; border: none; border-radius: 12px; padding: 16px; font-family: 'Courier New', monospace; font-size: 13px; resize: vertical; box-shadow: var(--inset-skeuo); min-height: 200px; }
+        .btn-group { display: flex; gap: 12px; margin-top: 16px; }
+        .btn { background: var(--surface); color: var(--text-main); border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-skeuo); flex: 1; }
+        .btn:active { box-shadow: var(--inset-skeuo); transform: scale(0.98); }
+        .btn-primary { color: var(--primary); }
+        .btn-success { color: var(--success); }
+        .btn-danger { color: var(--danger); }
+        .fragment-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+        .fragment-chip { background: var(--surface); padding: 12px 16px; border-radius: 10px; font-size: 13px; box-shadow: var(--shadow-skeuo); border: 1px solid var(--primary); color: var(--primary); }
+        #toast-container { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 9999; }
+        .toast { background: rgba(26, 29, 36, 0.95); backdrop-filter: blur(10px); color: white; padding: 14px 20px; border-radius: 12px; border-bottom: 3px solid var(--primary); }
+    </style>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4b6cb7">
+<link rel="apple-touch-icon" href="icon.png"></head>
+<body>
+    <div id="app">
+        <h1>🧠 Le Chirurgien <small style="font-size: 12px; color: var(--text-main); opacity: 0.5;">v1.0</small></h1>
+        
+        <div class="card">
+            <div class="card-title">🔌 Zone d'Incision</div>
+            <textarea id="io-textarea" placeholder="---FRAGMENT: Nom --- ... ---END---"></textarea>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="processInput()">⚡ Opérer (Fusionner)</button>
+                <button class="btn btn-danger" onclick="executeClear()">🗑️ Réinitialiser</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">🧩 Organes (Fragments)</div>
+            <div id="fragments-container" class="fragment-grid"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">🚀 Extraction</div>
+            <button class="btn btn-success" style="width: 100%;" onclick="downloadHtml()">📥 Extraire l'App HTML</button>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        let fragments = JSON.parse(localStorage.getItem('chirurgien_frags')) || {};
+
+        function showToast(msg) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
+
+        function saveState() {
+            localStorage.setItem('chirurgien_frags', JSON.stringify(fragments));
+            renderFragments();
+        }
+
+        function processInput() {
+            const input = document.getElementById('io-textarea').value;
+            const regex = /---FRAGMENT:\s*([^\n]+?)\s*---([\s\S]*?)---END---/g;
+            let match, count = 0;
+            while ((match = regex.exec(input)) !== null) {
+                fragments[match[1].trim()] = match[2].trim();
+                count++;
+            }
+            if (count > 0) {
+                saveState();
+                document.getElementById('io-textarea').value = '';
+                showToast(`✅ ${count} fragment(s) greffé(s) avec succès.`);
+            } else {
+                showToast("❌ Aucune incision valide détectée.");
+            }
+        }
+
+        function renderFragments() {
+            const container = document.getElementById('fragments-container');
+            container.innerHTML = Object.keys(fragments).map(id => `
+                <div class="fragment-chip">📄 ${id}</div>
+            `).join('');
+        }
+
+        function executeClear() {
+            fragments = {};
+            saveState();
+            showToast("🗑️ Base de données purgée.");
+        }
+
+        function downloadHtml() {
+            const code = Object.values(fragments).join('\n\n');
+            if (!code) return showToast("⚠️ Aucun organe à extraire.");
+
+            const htmlHead = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App PWA Exportée</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"><\/script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\/script>
+    <style>body { background: #111418; margin: 0; font-family: system-ui, sans-serif; } #root { min-height: 100vh; }</style>
+</head>
+<body>
+    <div id="root"></div>
+    <script>
+`;
+
+            const htmlFooter = `
+        const root = ReactDOM.createRoot(document.getElementById("root"));
+        root.render(React.createElement(App));
+    <\/script>
+
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script>
+</body>
+</html>`;
+
+            const blob = new Blob([htmlHead, code, htmlFooter], { type: 'text/html;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'app-chirurgie.html';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("📥 App extraite avec succès.");
+        }
+
+        renderFragments();
+    </script>
+</body>
+</html>
